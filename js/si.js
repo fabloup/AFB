@@ -1,6 +1,8 @@
 var canvas_width=800; //the width of our canvas
 var canvas_height=600; // the height of our canvas
 var ctx;
+const typePlayer=0;
+const typeEnemi=1;
 //Global Game Vars
 var gameOver=false;
 
@@ -11,6 +13,12 @@ ship.src="images/ship.png";
 var enemy_img = new Image();
 enemy_img.src="images/enemies.png"; 
 
+var projIma = new Image();
+projIma.src="images/projectile.png";
+
+var projEIma = new Image();
+projEIma.src="images/projectileEnemies.png"; 
+
 window.onload=function(){
 	var canvas = document.getElementById('canvas'); //set canvas to the elememt canvas
 	canvas.width=canvas_width; //set the canvas width
@@ -20,7 +28,7 @@ window.onload=function(){
 	addEventListener("keyup",keyup);
 
 	ctx = canvas.getContext('2d');  //set ctx to 2d context
-	window.setInterval(gameloop,1); //call gameloop every 1 ms
+	window.setInterval(gameloop,5); //call gameloop every 1 ms
 };
 
 
@@ -37,13 +45,15 @@ var players=function(){
 }
 
 var player=new players();
-var score=0;
-var level=1;
+var credit=0;
+var wave=1;
+var multiplier=1;
 //Projectile stuff
-var projectile = function(x,y){
+var projectile = function(x,y,typeP){
 	this.x=x;
 	this.y=y;
 	this.isDead=false;
+	this.typeP = typeP;
 }
 
 var projectiles=[];
@@ -86,12 +96,25 @@ function createEnemies(){
 	}
 }
 
+//create enemys 
+function reUpEnemies(){
+	var x = enemies[0].x-55;
+	var y = enemies[0].y-50;
+	for(var i=0; i < enemies.length; i++){
+			enemies[i].x-=x;
+			enemies[i].y-=y;
+	}
+	
+	enemyMovingRight=true;
+	
+}
+
 function enemiesFire(){
 	if(enemies.length > 0){
 		var randf = Math.floor((Math.random()*2*(enemies.length+35))+1);
 		if(randf == 1){
 			var rand = Math.floor((Math.random()*enemies.length));
-			var prj= new projectile(enemies[rand].x+32, enemies[rand].y+3);
+			var prj= new projectile(enemies[rand].x+32, enemies[rand].y+3,typeEnemi);
 			enemiesProjectiles.push(prj);
 		}
 	}
@@ -116,7 +139,8 @@ function gameloop(){
 			player.fireCoolDown=player.fireDefaultCoolDown;//rest cooldown
 		}
 		if(enemies.length<=0){ // are there still enemies?
-			level++; //inc level
+			wave++; //inc wave
+			multiplier=multiplier*2;
 			enemies=[];// reset enemies array
 			projectiles=[];// reset projectiles array
 			createEnemies();//create new enemys
@@ -137,7 +161,7 @@ function gameloop(){
 function render(){ //Clears screen and redraws
 	ctx.beginPath();
 	ctx.clearRect(0,0,canvas_width,canvas_height);//clear the canvas so we can redraw!
-	ctx.fillStyle="#000";
+	ctx.fillStyle="transparent";
 	ctx.fillRect(0,0,canvas_width,canvas_height);
 
 	ctx.drawImage(ship,player.x,player.y,64,64);
@@ -151,15 +175,16 @@ function render(){ //Clears screen and redraws
 function drawUI(){
 	ctx.fillStyle="#FFF";
 	ctx.font = "bold 10px arial";
-	ctx.fillText("Score: " + score, canvas_width-75, 10);
-	ctx.fillText("Level: " + level, canvas_width-75, 25);
+	ctx.fillText("Credit: " + credit, canvas_width-75, 10);
+	ctx.fillText("Wave: " + wave, canvas_width-75, 25);
+	ctx.fillText("Multiplier: x" + multiplier, canvas_width-75, 40);
 }
 function updateEnemies(){
 	var moveEnemiesDown=false;
 	enemyMoveTimer--;
 	if(enemyMoveTimer<=0){	
 		for(var i=0;i<enemies.length;i++){
-			if(enemyMovingRight){enemies[i].x+=2;}else{ enemies[i].x-=2;}
+			if(enemyMovingRight){enemies[i].x+=wave;}else{ enemies[i].x-=wave;}
 		//	if(enemies[i].img_x==32){ enemies[i].img_x=0}else{enemies[i].img_x=32;}
 			if(enemies[i].x>=canvas_width-80 || enemies[i].x<=16){
 			moveEnemiesDown=true;
@@ -188,18 +213,14 @@ function drawEnemies(){
 //Draw Projectiles
 function drawProjectiles(){
 			
-	ctx.strokeStyle="#FFF";//color of our lines
-	ctx.lineWidth=2; // width of our lines
 	//loop thro our projectiles
 	for(var i=0;i<projectiles.length;i++){
 	//check for off screen
 		if(projectiles[i].y>-5 && projectiles[i].y<canvas_height){
 			//move it
-			projectiles[i].y-=1.5;
+			projectiles[i].y-=1;
 			//draw it!
-			ctx.moveTo(projectiles[i].x,projectiles[i].y);
-			ctx.lineTo(projectiles[i].x,projectiles[i].y-10);
-			ctx.stroke();
+			ctx.drawImage(projIma,projectiles[i].x,projectiles[i].y,9,32);
 			//check collision
 			checkCollision(i);
 		}else{
@@ -207,14 +228,12 @@ function drawProjectiles(){
 				projectiles.splice(i,1);
 				
 		}	
-	}		
+	}			
 }
 
 //Draw Enemies Projectiles
 function drawEnemiesProjectiles(){
 			
-	ctx.strokeStyle="#FFF";//color of our lines
-	ctx.lineWidth=2; // width of our lines
 	//loop thro our projectiles
 	for(var i=0;i<enemiesProjectiles.length;i++){
 	//check for off screen
@@ -222,10 +241,9 @@ function drawEnemiesProjectiles(){
 			//move it
 			enemiesProjectiles[i].y+=1.5;
 			//draw it!
-			ctx.moveTo(enemiesProjectiles[i].x,enemiesProjectiles[i].y);
-			ctx.lineTo(enemiesProjectiles[i].x,enemiesProjectiles[i].y+10);
-			ctx.stroke();
+			ctx.drawImage(projEIma,enemiesProjectiles[i].x,enemiesProjectiles[i].y,9,32);
 			
+						
 			//check collision
 			checkFireEnemyCollision(i);
 		}else{
@@ -238,7 +256,7 @@ function drawEnemiesProjectiles(){
 
 
 function fire(){
-	var prj= new projectile(player.x+32, player.y-3);
+	var prj= new projectile(player.x+32-4, player.y-3,typePlayer);
 	projectiles.push(prj);
 	
 }
@@ -249,7 +267,7 @@ function checkCollision(proj){
 			&&enemies[i].y+50>=projectiles[proj].y && projectiles[proj].y>=enemies[i].y){
 			enemies.splice(i,1);
 			projectiles.splice(proj,1);
-			score+=level;
+			credit+=10*multiplier;
 			return;
 		}
 	}
@@ -260,10 +278,11 @@ function checkFireEnemyCollision(proj){
 		if(enemiesProjectiles[proj].x>=player.x+15 && enemiesProjectiles[proj].x <= player.x+49
 		&& enemiesProjectiles[proj].y>=player.y){
 			
+			multiplier=1;
 			enemiesProjectiles=[];
-			enemies=[];// reset enemies array
+			//enemies=[];// reset enemies array
 			projectiles=[];// reset projectiles array
-			createEnemies();//create new enemys
+			//reUpEnemies();//create new enemys
 		}
 }
 
